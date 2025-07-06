@@ -1,10 +1,11 @@
 import os
+import string
 import tkinter as tk
 from tkinter import filedialog, messagebox
 from PIL import Image as PILImage
 from openpyxl import Workbook
 from openpyxl.drawing.image import Image as XLImage
-import string
+import csv
 
 
 def column_letter_to_index(col_letter):
@@ -22,10 +23,9 @@ def column_letter_to_index(col_letter):
 class ImageToExcelApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Image to Excel Inserter")
-        self.root.geometry("600x350")
+        self.root.title("🖼️ Image to Excel Inserter")
+        self.root.geometry("600x400")
 
-        # Variables
         self.image_folder = tk.StringVar()
         self.output_file = tk.StringVar()
         self.start_row = tk.StringVar(value="1")
@@ -35,28 +35,28 @@ class ImageToExcelApp:
         self.create_widgets()
 
     def create_widgets(self):
-        # Image folder selection
+        # Image folder
         tk.Label(self.root, text="1. Select Image Folder:").pack(anchor='w', padx=10, pady=(10, 0))
         tk.Button(self.root, text="📁 Browse Folder", command=self.browse_folder).pack(padx=10, anchor='w')
         tk.Label(self.root, textvariable=self.image_folder, fg="blue").pack(anchor='w', padx=20)
 
-        # Starting row
+        # Start row
         tk.Label(self.root, text="2. Starting Row Number:").pack(anchor='w', padx=10, pady=(10, 0))
         tk.Entry(self.root, textvariable=self.start_row).pack(anchor='w', padx=20)
 
-        # Starting column
+        # Start column
         tk.Label(self.root, text="3. Starting Column (e.g., A, B, AA):").pack(anchor='w', padx=10, pady=(10, 0))
         tk.Entry(self.root, textvariable=self.start_col).pack(anchor='w', padx=20)
 
-        # Output file path
-        tk.Label(self.root, text="4. Select Output Excel File:").pack(anchor='w', padx=10, pady=(10, 0))
+        # Output file
+        tk.Label(self.root, text="4. Select Output File (.xlsx or .csv):").pack(anchor='w', padx=10, pady=(10, 0))
         tk.Button(self.root, text="📂 Choose Save Location", command=self.choose_output_file).pack(anchor='w', padx=10)
         tk.Label(self.root, textvariable=self.output_file, fg="green").pack(anchor='w', padx=20)
 
         # Generate button
-        tk.Button(self.root, text="▶️ Generate Excel", command=self.generate_excel, bg="green", fg="white").pack(pady=15)
+        tk.Button(self.root, text="▶️ Generate File", command=self.generate_excel, bg="green", fg="white").pack(pady=15)
 
-        # Status message
+        # Status
         tk.Label(self.root, textvariable=self.status_text, fg="blue").pack()
 
     def browse_folder(self):
@@ -65,7 +65,13 @@ class ImageToExcelApp:
             self.image_folder.set(folder)
 
     def choose_output_file(self):
-        file = filedialog.asksaveasfilename(defaultextension=".xlsx", filetypes=[("Excel Files", "*.xlsx")])
+        file = filedialog.asksaveasfilename(
+            defaultextension=".xlsx",
+            filetypes=[
+                ("Excel File (.xlsx)", "*.xlsx"),
+                ("CSV File (.csv)", "*.csv"),
+            ]
+        )
         if file:
             self.output_file.set(file)
 
@@ -88,7 +94,7 @@ class ImageToExcelApp:
             return False
 
         if not self.output_file.get():
-            messagebox.showerror("Error", "Please select an output Excel file path.")
+            messagebox.showerror("Error", "Please select an output file path.")
             return False
 
         return True
@@ -111,9 +117,36 @@ class ImageToExcelApp:
             messagebox.showerror("Error", "No image files found in the selected folder.")
             return
 
+        # If saving as .csv
+        if output_path.lower().endswith(".csv"):
+            confirm = messagebox.askyesno(
+                "CSV Notice",
+                "CSV files do not support images.\n\nOnly filenames and paths will be saved.\nProceed?"
+            )
+            if not confirm:
+                return
+
+            try:
+                with open(output_path, mode='w', newline='', encoding='utf-8') as csvfile:
+                    writer = csv.writer(csvfile)
+                    writer.writerow(["Image Filename", "Image Path"])
+
+                    for idx, img_file in enumerate(image_files, start=1):
+                        img_path = os.path.join(folder, img_file)
+                        writer.writerow([img_file, img_path])
+                        self.status_text.set(f"Writing entry {idx} of {len(image_files)}...")
+                        self.root.update_idletasks()
+
+                self.status_text.set("✅ CSV file saved successfully!")
+                messagebox.showinfo("Success", "CSV file generated successfully!")
+
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to save CSV file:\n{str(e)}")
+            return
+
+        # Else: Generate Excel (.xlsx)
         wb = Workbook()
         ws = wb.active
-
         current_row = start_row
 
         for idx, img_file in enumerate(image_files, start=1):
@@ -122,16 +155,13 @@ class ImageToExcelApp:
             self.root.update_idletasks()
 
             try:
-                # Use Pillow to ensure the image is valid
+                # Validate image with Pillow
                 with PILImage.open(img_path) as pil_img:
                     pil_img.verify()
 
                 xl_img = XLImage(img_path)
-
-                # Insert image at the correct cell
                 cell_coord = f"{start_col_letter}{current_row}"
                 ws.add_image(xl_img, cell_coord)
-
                 current_row += 1
 
             except Exception as e:
