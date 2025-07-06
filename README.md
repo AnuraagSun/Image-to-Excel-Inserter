@@ -4,6 +4,11 @@ A Python GUI application that lets you bulk insert images into an Excel spreadsh
 
 ---
 
+## 💻 GUI Preview
+
+![App Preview](https://raw.githubusercontent.com/AnuraagSun/Image-to-Excel-Inserter/1262aa2c23de73b30cafda77677017ca0311cd26/aaaaaaaaa.JPG)
+---
+
 ## 🚀 Features
 
 - 📁 Select a folder containing `.jpg`, `.jpeg`, or `.png` images
